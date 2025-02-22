@@ -1,50 +1,76 @@
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import '../cubits/character_cubit.dart';
+import '../data/character_model.dart';
+import 'data/character_model.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: request(),
-      builder: (context, snapshot) {
-        return Column(
-          children: [
-            SizedBox(
-              height: MediaQuery.of(context).size.height,
-              width: MediaQuery.of(context).size.width,
-              child: ListView.builder(
-                itemCount: snapshot.data!.length,
-                itemBuilder: (context, index) {
-                  final image = snapshot.data![index];
-                  return SizedBox(
-                    height: 200.0,
-                    width: 200.0,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(16.0),
-                      child: Image.network(
-                        image,
-                        fit: BoxFit.cover,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        );
-      },
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Harry Potter Characters', style: TextStyle(color: Colors.white)),
+        backgroundColor: Colors.black12,
+      ),
+      body: BlocProvider(
+        create: (_) => CharacterCubit()..fetchCharacters(),
+        child: BlocBuilder<CharacterCubit, CharacterState>(
+          builder: (context, state) {
+            return state.when(
+              initial: () => const Center(child: Text('Initial State')),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              loaded: (characters) => _buildCharacterList(characters),
+              error: (message) => Center(child: Text(message)),
+            );
+          },
+        ),
+      ),
     );
   }
 
-  Future<List<String>> request() async {
-    final dio = Dio();
-    Response response = await dio.get('https://potterapi-fedeperin.vercel.app/en/characters');
-    List<String> images = (response.data as List).map<String>(
-          (item) => item['image'] as String,
-    ).toList();
-    return images;
+  Widget _buildCharacterList(List<Character> characters) {
+    return ListView.builder(
+      itemCount: characters.length,
+      itemBuilder: (context, index) {
+        final character = characters[index];
+        return Card(
+          margin: const EdgeInsets.all(8.0),
+          elevation: 4.0,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.0)),
+          child: Column(
+            children: [
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16.0)),
+                child: Image.network(
+                  character.image,
+                  height: 200.0,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      character.name,
+                      style: const TextStyle(fontSize: 18.0, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8.0),
+                    Text('House: ${character.house}'),
+                    Text('Patronus: ${character.patronus}'),
+                    Text('Wand: ${character.wand.wood}, ${character.wand.core}, ${character.wand.length} inches'),
+                    Text(character.alive ? 'Alive' : 'Deceased'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }
